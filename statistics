@@ -151,3 +151,107 @@ print(stats.f_oneway(setosa, versicolor, virginica))
 # F_onewayResult(statistic=49.160040089612075, pvalue=4.492017133309115e-17)
 
 
+
+# 2 way anova : 2개의 범주형 변수가 1개의 연속형 변수에 미치는 영향 측정
+# 정규성->shapiro, 등분산성->stats.levene(x, y)
+
+#귀무가설 : a,b변수에 상호작용이 없다, a변수는 영향력이 없다, b변수는 영향력이 없다.
+#대립가설 : a,b변수의 상호작용이 있다. a변수는 영향력이 있다, b변수는 영향력이 있다.
+
+# 사후검정 : 적어도 한 집단에서 평균 차이가 있으면 실시. tukeyHSD
+
+
+import seaborn as sns
+from scipy.stats import levene
+
+cars = pd.read_csv('/Users/eve/Downloads/jupyter notebook/files/stat/mtcars.csv',
+                  index_col=0)
+
+
+#am, cyl은 범주형이고 독립변수, mpg는 연속형이고 종속변수이다
+usedata = cars[['mpg', 'am', 'cyl']]
+
+# 정규성을 검정해 보자. 이거 mpg만 하면 되지 않아?
+
+shapiro(usedata['mpg']) # 0.12로 정규성을 검증했다
+
+# levene() # 이원배치는 연속형이 하나인데 어떻게 등분산성을 검증함?
+
+
+from statsmodels.formula.api import ols
+from statsmodels.stats.anova import anova_lm
+
+
+#ols 최소제곱법으로 식을 만드는 것임. 잔차를 최소로 하는 가중치 벡터를 만든다.
+#잔차는 y값에서 y평균값을 뺀거임. 그러니까 이 값이 작을수록 좋은거임
+#가중치 벡터를 가지고 분산분석(anova_lm) 함수를 써서 값을 출력한다
+formula = 'mpg ~ C(cyl) + C(am) + C(cyl):C(am)'
+model = ols(formula, usedata).fit()
+aov_table = anova_lm(model, typ=2)
+aov_table
+
+# cyl과 am 둘다 종속변수에 영향을 미치고 있는 변수이다. 둘중에 cyl이 더 강한 영향력을 보여준다.
+# 교호작용을 살펴보면 값이 0.2이므로 귀무가설을 기각하지 않는다. -> 교호작용 없다
+# 귀무가설 : 두 변수 간 교호작용은 없다. 대립가설 : 두 변수 간 교호작용이 있다.
+
+from statsmodels.graphics.factorplots import interaction_plot
+import matplotlib.pyplot as plt
+
+cyl = cars['cyl']
+am = cars['am']
+mpg = cars['mpg']
+fig, ax = plt.subplots(figsize=(6, 6))
+# 교호작용 그래프 함수 쓸 때는 x1, x2, y 순대로 써야한다
+fig = interaction_plot(cyl, am, mpg, colors=['red', 'blue'],
+                      markers=['D', '^'], ax=ax, ms=10)
+
+
+
+#x square test : 독립변수가 범주형이면 적용
+#적합성 검정 : (이론)기대빈도와 실제분포가 일치하는가? (예시)내가 보기엔 이 변수 분포가 4:6인데 맞나요?를 검정
+#chisquare(value_counts(), f_exp = 기대빈도 list, ddof=자유도 값)
+
+titanic = pd.read_csv('/Users/eve/Downloads/jupyter notebook/files/stat/titanic.csv')
+
+#귀무가설 : 생존자 중 남자50% 여자50%이다
+#대립가설 : 생존자 중 50/50이라고 할 수 없다
+
+val_cnt = titanic.loc[titanic['survived']==1, 'sex'].value_counts()
+
+# female    233
+# male      109
+
+# 기대빈도 구하는 법 : 342*0.5가 양쪽의 기대빈도. 만약 여남 7:3이었다? 그럼 342*0.7/342*03이 기대빈도가 된다.
+
+from scipy.stats import chisquare
+
+chi = chisquare(val_cnt, f_exp=[171, 171])
+chi
+Power_divergenceResult(statistic=44.95906432748538, pvalue=2.0119672574477235e-11)
+
+p-value가 0.05미만이므로 50/50이라고 할 수 없다
+
+
+
+#독립성 검정 : 모집단이 두 개의 범주형 변수에 의해 범주화되었을 때 두 변수가 독립인지 검정
+#chi2_contingency(pd.crosstab(data))
+
+
+# titanic 데이터에서 좌석등급과 생존 여부가 서로 독립인지 알아보기
+# 귀무가설 : 독립이다. -> 이게 좋은거
+# 대립가설 : 독립이 아니다. 
+
+usedata = titanic[['pclass', 'survived']]
+
+table = pd.crosstab(usedata['pclass'], usedata['survived'])
+
+from scipy.stats import chi2_contingency
+
+chi, p, df, expect = chi2_contingency(table)
+
+print(chi) # chi 통계량 : 102.88898875696056
+print(p)   # p-value  : 4.549251711298793e-23
+print(df)  # df       : 2
+print(expect) # 기대빈도 : [[133.09090909  82.90909091]
+              #          [113.37373737  70.62626263]
+              #          [302.53535354 188.46464646]]
