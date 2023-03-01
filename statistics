@@ -1,0 +1,153 @@
+#t-test : 집단의 평균이나 평균의 차이를 추정한다. 
+# 1) 일표본 t-test : 한 집단의 평균을 특정값과 비교한다.
+
+import pandas as pd
+
+#고양이의 성별, 몸무게, 길이
+cats = pd.read_csv('/Users/eve/Downloads/jupyter notebook/files/stat/cats.csv')
+
+
+#귀무가설 : 고양이의 몸무게가 2.6kg와 같다.
+#대립가설 : 고양이의 몸무게가 2.6kg와 같지 않다. 에 대해 검증한다.
+
+b = cats['Bwt']
+
+
+from scipy.stats import shapiro, wilcoxon, ttest_1samp
+
+#정규성 검정
+normal = shapiro(cats['Bwt'])
+print('sp stats : ', normal[0])
+print('sp p-value : ', normal[1])
+# sp stats :  0.9518786668777466
+# sp p-value :  6.730228778906167e-05
+
+# 데이터가 30개가 넘는데도 정규성 검정에서 탈락됨.
+# 그러므로 wilcoxon test를 진행한다. 정규성이 검증되면 stats.ttest_1samp를 썼을 것
+
+mu = 2.6 #비교할 몸무게 값
+
+wc_result = wilcoxon(b - mu, alternative='two-sided')
+
+print('\n')
+print('wilc stats : ', wc_result[0])
+print('wilc p-value : ', wc_result[1])
+# wilc stats :  3573.0
+# wilc p-value :  0.02524520294814093
+
+# 검정에서 p-value가 0.5 미만이므로 평균값이 2.6과 같지 않다는 대립가설을 지지한다.
+# 만약 정규성이 입증되었다면?
+
+mu=14
+
+t1_result = ttest_1samp(cats['Hwt'], popmean=mu)
+
+print('\n')
+print('t1 stats : ', t1_result[0])
+print('t1 p-value : ', t1_result[1])
+# t1 stats :  -16.607549052642742
+# t1 p-value :  3.5069853129075693e-35
+# 결론 : p-value가 0.5 미만이므로 평균값이 2.6과 같지 않다는 대립가설을 지지한다.
+
+
+
+# 2) 대응표본 t-test : 단일 모집단에서 처리 전후의 평균 차이 비교
+
+#수면제 투입 전과 투입 후의 수면 시간 비교
+#귀무가설 : 전과 후의 차이가 없다
+#대립가설 : 전과 후의 차이가 있다
+
+import pandas as pd
+import scipy.stats as stats
+
+df_ba = pd.DataFrame({'before':[7, 3, 4, 5, 2, 1, 6, 6, 5, 4],
+      'after':[8, 4, 5, 6, 2, 3, 6, 8, 6, 5]})
+
+
+#정규성 검정 결과 정규성 만족하는 것으로 확인됨
+print(shapiro(df_ba['before']))
+#ShapiroResult(statistic=0.9644591808319092, pvalue=0.835266649723053)
+print(shapiro(df_ba['after']))
+#ShapiroResult(statistic=0.945683479309082, pvalue=0.6177965998649597)
+
+rel = stats.ttest_rel(df_ba['before'], df_ba['after'], alternative='less')
+print(rel)
+# Ttest_relResult(statistic=-4.743416490252569, pvalue=0.0005269356285082764)
+#결론 : p-value가 0.05 미만이므로 before가 after는 차이가 있으며 before가 after에 비해 작다(단측검정 해석 방법)
+
+
+
+#독립표본 t-test : 2개의 독립된 모집단의 평균 비교.
+
+#고양이의 성별에 따른 몸무게 평균 비교
+#귀무가설 : 성별에 따라 몸무게의 평균이 차이가 없다.
+#대립가설 : 성별에 따라 몸무게의 평균이 차이가 있다.
+
+import pandas as pd
+
+cats = pd.read_csv('/Users/eve/Downloads/jupyter notebook/files/stat/cats.csv')
+
+female = cats.loc[cats['Sex']=='F', 'Bwt']
+male = cats.loc[cats['Sex']=='M', 'Bwt']
+
+# 독립표본 t-test를 할 때는 정규성 및 등분산성 둘 다 만족해야 한다. 
+# 정규성 만족한다고 가정하고 등분산성 검증 : 레빈 검증 사용하여 등분산성이 만족하지 않는 것으로 확인
+
+eval = stats.levene(female, male)
+print(eval)
+#LeveneResult(statistic=19.43101190877999, pvalue=2.0435285255189404e-05)
+
+#등분산성이 만족하지 않을 경우 ttest_ind의 equal_var=false로 실행하면 된다.
+ind_result = stats.ttest_ind(female, male, equal_var=False, alternative='two-sided')
+print(ind_result)
+# Ttest_indResult(statistic=-8.70948849909559, pvalue=8.831034455859356e-15)
+# 결론 : p-value가 0.05 미만이므로 성별에 따른 몸무게 차이는 존재한다.
+
+
+
+# 분산분석 : 3개 이상의 집단의 평균을 비교(종속변수의 class가 3개 이상) 
+#집단 내 분산과 집단 간 분산을 비교해 후자가 크면 유의하다고 판단
+#종속변수가 연속형, 독립변수가 범주형
+
+# 1way anova : 1개의 독립변수, 1개의 종속변수, class는 3개 이상
+# 2way anova : 2개의 독립변수, 1개의 종속변수, class는 3개 이상    
+# 2way anova : 2개의 독립변수, 1개의 종속변수, class는 3개 이상
+# manova : 1개 이상의 독립변수, 2개의 종속변수.
+
+    
+#정규성, 등분산성 만족해야함
+
+
+from sklearn.datasets import load_iris
+
+iris = load_iris()
+
+df_iris = pd.DataFrame(iris.data, columns=iris.feature_names)
+
+df_iris['result'] = iris.target
+
+# 1) 1-way anova
+
+setosa = df_iris.loc[df_iris['result']==0, 'sepal width (cm)']
+versicolor = df_iris.loc[df_iris['result']==1, 'sepal width (cm)']
+virginica = df_iris.loc[df_iris['result']==2, 'sepal width (cm)']
+# y = df_iris['result']
+
+print(stats.shapiro(setosa))
+print(stats.shapiro(versicolor))
+print(stats.shapiro(virginica))
+#셋 다 만족
+# ShapiroResult(statistic=0.971718966960907, pvalue=0.2715126574039459)
+# ShapiroResult(statistic=0.9741329550743103, pvalue=0.3379843533039093)
+# ShapiroResult(statistic=0.9673907160758972, pvalue=0.18089871108531952)
+
+
+print(stats.levene(setosa, versicolor, virginica))
+# 등분산성 만족
+# LeveneResult(statistic=0.5902115655853319, pvalue=0.5555178984739075)
+
+print(stats.f_oneway(setosa, versicolor, virginica))
+# p-value가 0.05 미만이므로 세 집단의 평균 차이가 있다고 볼 수 있다.
+# F_onewayResult(statistic=49.160040089612075, pvalue=4.492017133309115e-17)
+
+
